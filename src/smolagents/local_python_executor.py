@@ -374,6 +374,7 @@ def create_function(
         try:
             for stmt in func_def.body:
                 result = evaluate_ast(stmt, func_state, static_tools, custom_tools, authorized_imports)
+                state['_operations_count'] = func_state['_operations_count']
         except ReturnException as e:
             result = e.value
 
@@ -1224,6 +1225,20 @@ def evaluate_delete(
             raise InterpreterError(f"Deletion of {type(target).__name__} targets is not supported")
 
 
+class OperationsCounter:
+    """
+    Simple counter to limit the number of operations in a single evaluation.
+    """
+    def __init__(self):
+        self.count = 0
+
+    def increment(self):
+        self.count += 1
+
+    def __call__(self):
+        return self.count
+
+
 @safer_eval
 def evaluate_ast(
     expression: ast.AST,
@@ -1252,11 +1267,11 @@ def evaluate_ast(
             The list of modules that can be imported by the code. By default, only a few safe modules are allowed.
             If it contains "*", it will authorize any import. Use this at your own risk!
     """
-    if state.setdefault("_operations_count", 0) >= MAX_OPERATIONS:
+    if state.setdefault("_operations_count", OperationsCounter())() >= MAX_OPERATIONS:
         raise InterpreterError(
             f"Reached the max number of operations of {MAX_OPERATIONS}. Maybe there is an infinite loop somewhere in the code, or you're just asking too many calculations."
         )
-    state["_operations_count"] += 1
+    state["_operations_count"].increment()
     common_params = (state, static_tools, custom_tools, authorized_imports)
     if isinstance(expression, ast.Assign):
         # Assignment -> we evaluate the assignment which should update the state
