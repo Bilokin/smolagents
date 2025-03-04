@@ -374,7 +374,6 @@ def create_function(
         try:
             for stmt in func_def.body:
                 result = evaluate_ast(stmt, func_state, static_tools, custom_tools, authorized_imports)
-                state["_operations_count"] = func_state["_operations_count"]
         except ReturnException as e:
             result = e.value
 
